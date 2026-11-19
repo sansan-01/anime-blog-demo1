@@ -3,33 +3,29 @@
  * welcome.js
  */
 const { version } = require("../../package.json");
-const https = require("https");
 
 hexo.on("ready", async () => {
-  const timeout = 3000;
-
-  async function fetchRedefineInfo() {
-    try {
-      const response = await fetch(
-        `https://redefine-version.ohevan.com/api/v2/info`,
-      );
-      const jsonData = await response.json();
-      return jsonData;
-    } catch (error) {
-      console.error("Error fetching redefine info:", error);
-      return null;
-    }
-  }
-
   try {
-    const jsonData = await fetchRedefineInfo();
-    if (jsonData) {
-      const redefineData = jsonData.data;
-
-      logInfo(redefineData);
-      checkVersionAndCDNAvailability(redefineData);
-      await fetchRedefineInfo();
+    const response = await fetch("https://redefine-version.ohevan.com/api/v2/info", {
+      signal: AbortSignal.timeout(3000),
+    });
+    if (!response.ok) {
+      throw new Error(`Version service returned HTTP ${response.status}`);
     }
+    const jsonData = await response.json();
+    const redefineData = jsonData?.data;
+    const versionPattern = /^[0-9]+\.[0-9]+\.[0-9]+(?:[-+][0-9A-Za-z.+-]+)?$/;
+    const npmVersion = redefineData?.npmVersion;
+    if (
+      typeof npmVersion !== "string" ||
+      npmVersion.trim() !== npmVersion ||
+      !versionPattern.test(npmVersion)
+    ) {
+      throw new Error("Version service returned an invalid version");
+    }
+
+    logInfo(redefineData);
+    checkVersionAndCDNAvailability(redefineData);
   } catch (error) {
     hexo.log.warn(`Check latest version failed: ${error}`);
     hexo.locals.set(`cdnTestStatus_cdnjs`, 404);

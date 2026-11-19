@@ -187,7 +187,6 @@ export function initHBE() {
     console.log(`Verification result: ${result}`);
     if (!result) {
       alert(wrongHashMessage);
-      console.log(`${wrongHashMessage}, got `, signature, ` but proved wrong.`);
     }
     return result;
   }
@@ -211,6 +210,9 @@ export function initHBE() {
         // check the prefix, if not then we can sure here is wrong password.
         if (!decoded.startsWith(knownPrefix)) {
           throw "Decode successfully but not start with KnownPrefix.";
+        }
+        if (!(await verifyContent(hmacKey, decoded))) {
+          return false;
         }
 
         const hideButton = document.createElement("button");
@@ -244,7 +246,7 @@ export function initHBE() {
         var event = new Event("hexo-blog-decrypt");
         window.dispatchEvent(event);
 
-        return await verifyContent(hmacKey, decoded);
+        return true;
       })
       .catch((e) => {
         alert(wrongPassMessage);
@@ -255,52 +257,40 @@ export function initHBE() {
     return result;
   }
 
-  function hbeLoader() {
-    const oldStorageData = JSON.parse(storage.getItem(storageName));
-
-    if (oldStorageData) {
-      console.log(
-        `Password got from localStorage(${storageName}): `,
-        oldStorageData,
-      );
+  async function restoreStoredContent() {
+    try {
+      const savedState = storage.getItem(storageName);
+      const oldStorageData = JSON.parse(savedState);
+      if (!oldStorageData) return;
 
       const sIv = hexToArray(oldStorageData.iv).buffer;
-      const sDk = oldStorageData.dk;
-      const sHmk = oldStorageData.hmk;
-
-      cryptoObj.subtle
-        .importKey(
-          "jwk",
-          sDk,
-          {
-            name: "AES-CBC",
-            length: 256,
-          },
-          true,
-          ["decrypt"],
-        )
-        .then((dkCK) => {
-          cryptoObj.subtle
-            .importKey(
-              "jwk",
-              sHmk,
-              {
-                name: "HMAC",
-                hash: "SHA-256",
-                length: 256,
-              },
-              true,
-              ["verify"],
-            )
-            .then((hmkCK) => {
-              decrypt(dkCK, sIv, hmkCK).then((result) => {
-                if (!result) {
-                  storage.removeItem(storageName);
-                }
-              });
-            });
-        });
+      const decryptKey = await cryptoObj.subtle.importKey(
+        "jwk",
+        oldStorageData.dk,
+        { name: "AES-CBC", length: 256 },
+        true,
+        ["decrypt"],
+      );
+      const hmacKey = await cryptoObj.subtle.importKey(
+        "jwk",
+        oldStorageData.hmk,
+        { name: "HMAC", hash: "SHA-256", length: 256 },
+        true,
+        ["verify"],
+      );
+      if (
+        !(await decrypt(decryptKey, sIv, hmacKey)) &&
+        storage.getItem(storageName) === savedState
+      ) {
+        storage.removeItem(storageName);
+      }
+    } catch {
+      console.warn("Could not restore the saved unlock state.");
     }
+  }
+
+  function hbeLoader() {
+    restoreStoredContent();
 
     mainElement.addEventListener("keydown", async (event) => {
       if (event.isComposing || event.key === "Enter") {

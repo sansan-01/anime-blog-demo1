@@ -16,7 +16,7 @@ const defaultConfig = {
   wrong_pass_message:
     "Oh, this is an invalid password. Check and try again, please.",
   wrong_hash_message:
-    "OOPS, these decrypted content may changed, but you can still have a look.",
+    "The decrypted content failed verification.",
   silent: false,
 };
 
@@ -35,7 +35,7 @@ var theme = "default";
 hexo.extend.filter.register(
   "after_post_render",
   (data) => {
-    const tagEncryptPairs = [];
+    const tagEncryptPairs = new Map();
 
     let password = data.password;
     let tagUsed = false;
@@ -51,15 +51,15 @@ hexo.extend.filter.register(
 
     if ("encrypt" in hexo.config && "tags" in hexo.config.encrypt) {
       hexo.config.encrypt.tags.forEach((tagObj) => {
-        tagEncryptPairs[tagObj.name] = tagObj.password;
+        tagEncryptPairs.set(tagObj.name, tagObj.password);
       });
     }
 
     if (data.tags) {
       data.tags.forEach((cTag) => {
-        if (tagEncryptPairs.hasOwnProperty(cTag.name)) {
+        if (tagEncryptPairs.has(cTag.name)) {
           tagUsed = password ? tagUsed : cTag.name;
-          password = password || tagEncryptPairs[cTag.name];
+          password = password || tagEncryptPairs.get(cTag.name);
         }
       });
     }
@@ -74,7 +74,7 @@ hexo.extend.filter.register(
     data.origin = data.content;
 
     // Let's rock n roll
-    const config = Object.assign(defaultConfig, hexo.config.encrypt, data);
+    const config = { ...defaultConfig, ...hexo.config.encrypt, ...data };
     silent = config.silent;
     theme = config.theme.trim().toLowerCase();
 

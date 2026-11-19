@@ -25,6 +25,7 @@ export default function initTyped(id) {
   function typing(dataList) {
     const st = new Typed("#" + id, {
       strings: [dataList],
+      contentType: "null",
       typeSpeed: usrTypeSpeed || 100,
       smartBackspace: usrSmartBackspace || false,
       backSpeed: usrBackSpeed || 80,
@@ -36,9 +37,17 @@ export default function initTyped(id) {
 
   if (theme.home_banner.subtitle.hitokoto.enable) {
     fetch(usrHitokotoAPI)
-      .then((response) => response.json())
+      .then((response) => {
+        if (!response.ok) throw new Error("Could not load the banner quote");
+        return response.json();
+      })
       .then((data) => {
-        if (data.from_who && theme.home_banner.subtitle.hitokoto.show_author) {
+        if (typeof data?.hitokoto !== "string") return;
+        if (
+          typeof data.from_who === "string" &&
+          data.from_who &&
+          theme.home_banner.subtitle.hitokoto.show_author
+        ) {
           typing(data.hitokoto + "——" + data.from_who);
         } else {
           typing(data.hitokoto);

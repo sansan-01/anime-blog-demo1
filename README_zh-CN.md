@@ -3,7 +3,7 @@
 一个专为动漫爱好者打造的个人博客模板，基于现代化的前端技术栈构建。它集成了 Live2D 角色动画和 particles.js 粒子背景效果，为用户提供沉浸式的动漫风格体验。这个项目为动漫文化爱好者提供了一个美观且实用的博客解决方案。
 
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
-![Node Version](https://img.shields.io/badge/node-%3E%3D16.0.0-brightgreen.svg)
+![Node Version](https://img.shields.io/badge/node-22%20%7C%2024%20LTS-brightgreen.svg)
 ![Yarn Version](https://img.shields.io/badge/yarn-%3E%3D1.22.0-blue.svg)
 
 ## 🚀 部署
@@ -33,7 +33,7 @@
 
 ### 环境要求
 
-- Node.js >= 16.0.0
+- Node.js 22 或 24 LTS
 - Yarn >= 1.22.0
 
 ### 安装步骤
@@ -51,7 +51,7 @@ yarn install
 
 3. 启动开发服务器
 ```bash
-yarn dev
+yarn server
 ```
 
 4. 构建生产版本
@@ -82,7 +82,7 @@ categories:
 ### 草稿管理
 
 - 将未完成的文章放在 `source/_drafts` 目录
-- 使用 `yarn draft` 命令预览草稿
+- 使用 `yarn server --draft` 命令预览草稿
 
 ## ⚙️ 配置说明
 

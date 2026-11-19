@@ -2,11 +2,14 @@
 
 "use strict";
 
-const url = require("url");
 const fs = require("fs");
 const path = require("path");
 const yaml = require("js-yaml");
 const { version } = require("../package.json");
+
+function scriptJson(value) {
+  return JSON.stringify(value)?.replace(/</g, "\\u003c");
+}
 
 /**
  * Export theme config to js
@@ -38,15 +41,18 @@ hexo.extend.helper.register("export_config", function () {
   };
 
   const languageDir = path.join(__dirname, "../languages");
-  let file = fs
-    .readdirSync(languageDir)
-    .find((v) => v === `${this.config.language}.yml`);
-  file = languageDir + "/" + (file ? file : "en.yml");
-  let languageContent = fs.readFileSync(file, "utf8");
+  let languageContent;
   try {
+    const file =
+      fs.readdirSync(languageDir).find((v) => v === `${this.config.language}.yml`) ||
+      "en.yml";
+    languageContent = fs.readFileSync(path.join(languageDir, file), "utf8");
     languageContent = yaml.load(languageContent);
-  } catch (e) {
-    console.log(e);
+  } catch {
+    hexo.log.warn("Could not load theme translations. Falling back to English.");
+    languageContent = yaml.load(
+      fs.readFileSync(path.join(languageDir, "en.yml"), "utf8"),
+    );
   }
 
   let data_config = {
@@ -58,9 +64,9 @@ hexo.extend.helper.register("export_config", function () {
   }
 
   return `<script id="hexo-configurations">
-    window.config = ${JSON.stringify(hexo_config)};
-    window.theme = ${JSON.stringify(theme_config)};
-    window.lang_ago = ${JSON.stringify(languageContent["ago"])};
-    window.data = ${JSON.stringify(data_config)};
+    window.config = ${scriptJson(hexo_config)};
+    window.theme = ${scriptJson(theme_config)};
+    window.lang_ago = ${scriptJson(languageContent?.ago)};
+    window.data = ${scriptJson(data_config)};
   </script>`;
 });

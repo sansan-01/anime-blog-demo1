@@ -9,6 +9,7 @@ export default function initLocalSearch() {
 
   // Popup Window
   let isfetched = false;
+  let fetchPromise;
   let datas;
   let isXml = true;
   if (searchPath.length === 0) {
@@ -77,20 +78,26 @@ export default function initLocalSearch() {
     };
   };
 
+  const escapeHtml = (text) =>
+    text
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
+
   // Highlight title and content
   const highlightKeyword = (text, slice) => {
     let result = "";
     let prevEnd = slice.start;
     slice.hits.forEach((hit) => {
-      result += text.substring(prevEnd, hit.position);
+      result += escapeHtml(text.substring(prevEnd, hit.position));
       let end = hit.position + hit.length;
-      result += `<b class="search-keyword">${text.substring(
-        hit.position,
-        end,
+      result += `<b class="search-keyword">${escapeHtml(
+        text.substring(hit.position, end),
       )}</b>`;
       prevEnd = end;
     });
-    result += text.substring(prevEnd, slice.end);
+    result += escapeHtml(text.substring(prevEnd, slice.end));
     return result;
   };
 
@@ -143,6 +150,10 @@ export default function initLocalSearch() {
           while (indexOfContent.length !== 0) {
             let item = indexOfContent[indexOfContent.length - 1];
             let { position, word } = item;
+            if (position + word.length > content.length) {
+              indexOfContent.pop();
+              continue;
+            }
             // Cut out 100 characters
             let start = position - 20;
             let end = position + 80;
@@ -182,18 +193,19 @@ export default function initLocalSearch() {
           }
 
           let resultItem = "";
+          const href = escapeHtml(url);
 
           if (slicesOfTitle.length !== 0) {
-            resultItem += `<li><a href="${url}" class="search-result-title">${highlightKeyword(
+            resultItem += `<li><a href="${href}" class="search-result-title">${highlightKeyword(
               title,
               slicesOfTitle[0],
             )}</a>`;
           } else {
-            resultItem += `<li><a href="${url}" class="search-result-title">${title}</a>`;
+            resultItem += `<li><a href="${href}" class="search-result-title">${escapeHtml(title)}</a>`;
           }
 
           slicesOfContent.forEach((slice) => {
-            resultItem += `<a href="${url}"><p class="search-result">${highlightKeyword(
+            resultItem += `<a href="${href}"><p class="search-result">${highlightKeyword(
               content,
               slice,
             )}...</p></a>`;
@@ -235,36 +247,57 @@ export default function initLocalSearch() {
   };
 
   const fetchData = () => {
-    fetch(config.root + searchPath)
-      .then((response) => response.text())
+    if (isfetched || fetchPromise) return;
+
+    fetchPromise = fetch(config.root + searchPath)
+      .then((response) => {
+        if (!response.ok) throw new Error("Could not load the search index");
+        return response.text();
+      })
       .then((res) => {
-        // Get the contents from search data
+        let entries;
+        if (isXml) {
+          const xml = new DOMParser().parseFromString(res, "text/xml");
+          if (xml.querySelector("parsererror")) {
+            throw new Error("Invalid search index XML");
+          }
+          entries = Array.from(xml.querySelectorAll("entry"), (element) => ({
+            title: element.querySelector("title")?.textContent,
+            content: element.querySelector("content")?.textContent,
+            url: element.querySelector("url")?.textContent,
+          }));
+        } else {
+          entries = JSON.parse(res);
+        }
+        if (!Array.isArray(entries)) throw new Error("Invalid search index");
+
+        datas = entries.flatMap((data) => {
+          if (
+            typeof data?.title !== "string" || !data.title.trim() ||
+            typeof data.url !== "string" || !data.url.trim()
+          ) return [];
+
+          try {
+            const url = new URL(data.url, document.baseURI);
+            if (url.protocol !== "http:" && url.protocol !== "https:") return [];
+          } catch {
+            return [];
+          }
+          return [
+            {
+              title: data.title.trim(),
+              content: typeof data.content === "string"
+                ? data.content.trim().replace(/<[^>]+>/g, "")
+                : "",
+              url: data.url,
+            },
+          ];
+        });
         isfetched = true;
-        datas = isXml
-          ? [
-              ...new DOMParser()
-                .parseFromString(res, "text/xml")
-                .querySelectorAll("entry"),
-            ].map((element) => {
-              return {
-                title: element.querySelector("title").textContent,
-                content: element.querySelector("content").textContent,
-                url: element.querySelector("url").textContent,
-              };
-            })
-          : JSON.parse(res);
-        // Only match articles with not empty titles
-        datas = datas
-          .filter((data) => data.title)
-          .map((data) => {
-            data.title = data.title.trim();
-            data.content = data.content
-              ? data.content.trim().replace(/<[^>]+>/g, "")
-              : "";
-            data.url = decodeURIComponent(data.url).replace(/\/{2,}/g, "/");
-            return data;
-          });
-        // Remove loading animation
+      })
+      .catch(() => console.warn("Could not load the search index."))
+      .finally(() => {
+        fetchPromise = undefined;
         const noResultDom = document.querySelector("#no-result");
         noResultDom &&
           (noResultDom.innerHTML =

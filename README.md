@@ -3,7 +3,7 @@
 A personal blog template specifically designed for anime enthusiasts, built with modern frontend technology stack. It features interactive Live2D character animations and dynamic particle background effects using particles.js, creating an immersive anime-style experience. This project provides anime culture enthusiasts with a beautiful and practical blog solution.
 
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
-![Node Version](https://img.shields.io/badge/node-%3E%3D16.0.0-brightgreen.svg)
+![Node Version](https://img.shields.io/badge/node-22%20%7C%2024%20LTS-brightgreen.svg)
 ![Yarn Version](https://img.shields.io/badge/yarn-%3E%3D1.22.0-blue.svg)
 
 ## 🚀 Deploy
@@ -33,7 +33,7 @@ This project is intended for **private deployment only**. For commercial use, pl
 
 ### Requirements
 
-- Node.js >= 16.0.0
+- Node.js 22 or 24 LTS
 - Yarn >= 1.22.0
 
 ### Installation Steps
@@ -51,7 +51,7 @@ yarn install
 
 3. Start development server
 ```bash
-yarn dev
+yarn server
 ```
 
 4. Build for production
@@ -77,7 +77,7 @@ Post content...
 ### Draft Management
 
 - Place unfinished posts in the `source/_drafts` directory
-- Use `yarn draft` command to preview drafts
+- Use `yarn server --draft` to preview drafts
 
 ## ⚙️ Configuration
 
